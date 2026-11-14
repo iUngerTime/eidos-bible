@@ -1,44 +1,16 @@
 {
-  // F5 in VS Code. Each "try" run is a sandbox project and app data folder of its own, made by `eidos plugin dev`
-  // with dist/ linked, switched on, and allowed, and removed when you stop it, so none of your projects is touched.
-  // The app opens in your browser; the plugin's settings page is at /plugins/bible.
+  // F5: builds the plugin and opens Eidos MD on a throwaway sandbox project with it switched on.
+  // Breakpoints in src/*.ts stop. Stop the session and the sandbox is removed.
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Bible Import: try it in the app",
+      "name": "Bible Import",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/node_modules/eidosmd/dist/src/cli.js",
-      "args": ["plugin", "dev", "dist", "--port", "4880"],
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "bible: build with source maps",
-      "console": "integratedTerminal",
-      "outFiles": ["${workspaceFolder}/dist/**/*.js", "${workspaceFolder}/../eidosmd/cli/dist/**/*.js", "${workspaceFolder}/../eidosmd/app/dist/**/*.js"],
-      "skipFiles": ["<node_internals>/**"]
-    },
-    {
-      "name": "Bible Import: try it, after building eidosmd",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/node_modules/eidosmd/dist/src/cli.js",
-      "args": ["plugin", "dev", "dist", "--port", "4880"],
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "eidosmd and bible: build",
-      "console": "integratedTerminal",
-      "outFiles": ["${workspaceFolder}/dist/**/*.js", "${workspaceFolder}/../eidosmd/cli/dist/**/*.js", "${workspaceFolder}/../eidosmd/app/dist/**/*.js"],
-      "skipFiles": ["<node_internals>/**"]
-    },
-    {
-      "name": "Bible Import: run the tests",
-      "type": "node",
-      "request": "launch",
-      "runtimeArgs": ["--test", "--experimental-strip-types", "--test-concurrency=1"],
-      "args": ["test/plugin.test.ts"],
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "bible: build with source maps",
-      "console": "integratedTerminal",
-      "autoAttachChildProcesses": true,
-      "skipFiles": ["<node_internals>/**"]
+      "args": ["plugin", "dev", "dist"],
+      "preLaunchTask": "build",
+      "console": "integratedTerminal"
     }
   ]
 }

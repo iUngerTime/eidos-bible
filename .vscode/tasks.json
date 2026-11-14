@@ -2,33 +2,10 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "bible: build with source maps",
+      "label": "build",
       "type": "shell",
       "command": "node scripts/build.mjs --sourcemap",
       "group": { "kind": "build", "isDefault": true },
-      "presentation": { "reveal": "silent", "panel": "shared", "clear": true },
-      "problemMatcher": []
-    },
-    {
-      "label": "bible: test",
-      "type": "shell",
-      "command": "pnpm test",
-      "group": { "kind": "test", "isDefault": true },
-      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
-      "problemMatcher": []
-    },
-    {
-      "label": "eidosmd: build the CLI and the app",
-      "type": "shell",
-      "command": "pnpm --filter eidosmd build && pnpm --filter @eidosmd/app build",
-      "options": { "cwd": "${workspaceFolder}/../eidosmd" },
-      "presentation": { "reveal": "silent", "panel": "shared", "clear": true },
-      "problemMatcher": ["$tsc"]
-    },
-    {
-      "label": "eidosmd and bible: build",
-      "dependsOn": ["eidosmd: build the CLI and the app", "bible: build with source maps"],
-      "dependsOrder": "sequence",
       "problemMatcher": []
     }
   ]
