@@ -199,18 +199,30 @@ export function padChapter(chapter: number, chapters: number): string {
 export class Layout {
   readonly naming: string;
   readonly translation: Translation;
+  // whether a book's folder carries its place among the 66 (`20-proverbs`):
+  // on a host that declares the folders in order (Surfaces REQ65) the page
+  // lists them in that order and the name is the book's alone (`proverbs`);
+  // on an older one the number is what keeps them in order
+  readonly numbered: boolean;
+  // each book's folder as the host declared it, by the book's place, which
+  // wins over the name worked out here
+  readonly declared = new Map<number, string>();
 
-  constructor(naming: string, translation: Translation) {
+  constructor(naming: string, translation: Translation, numbered = true) {
     this.naming = naming;
     this.translation = translation;
+    this.numbered = numbered;
   }
 
   bookName(index: number): string {
     return bookName(this.translation.language, index);
   }
 
-  // A book's folder: its place among the 66 and its name, `20-proverbs`.
+  // A book's folder: its name, `proverbs`, after its place among the 66 where the folders are numbered, `20-proverbs`.
   bookFolder(index: number, name: string): string {
+    const declared = this.declared.get(index);
+    if (declared !== undefined) return declared;
+    if (!this.numbered) return nameIn(this.naming, name);
     return nameIn(this.naming, `${String(index + 1).padStart(2, '0')} ${name}`);
   }
 

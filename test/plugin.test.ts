@@ -135,12 +135,23 @@ test('the import writes every book and chapter as blueprints, and check is clean
   assert.equal(run.status, 0, run.stderr);
   assert.match(run.stdout, /Berean Standard Bible written to Bible \(bible\/, 1256 blueprints\)/);
   const folder = path.join(sandbox.root, 'bible');
-  assert.equal(readdirSync(folder).filter((entry) => /^\d\d-/.test(entry)).length, 66);
+  // a host that declares the folders (Surfaces REQ65) lists them in the order declared, so their names carry no number
+  const declares = (await sandbox.route<{ can_create: boolean }>('GET', 'options')).can_create;
+  const psalms = declares ? 'psalms' : '19-psalms';
+  const proverbs = declares ? 'proverbs' : '20-proverbs';
+  const books = readdirSync(folder).filter((entry) => !entry.endsWith('.md'));
+  assert.equal(books.length, 66);
+  assert.equal(books.filter((entry) => /^\d\d-/.test(entry)).length, declares ? 0 : 66);
+  if (declares) {
+    const framework = readFileSync(path.join(sandbox.root, '.eidos', 'Framework.yaml'), 'utf8');
+    assert.ok(framework.indexOf('name: genesis') < framework.indexOf('name: exodus') && framework.indexOf('name: malachi') < framework.indexOf('name: matthew'), 'the books are declared in their order');
+    assert.match(readFileSync(path.join(folder, 'berean-standard-bible.md'), 'utf8'), /- \[Genesis\]\(<genesis\/genesis\.md>\)/);
+  }
   assert.ok(existsSync(path.join(folder, 'berean-standard-bible.md')));
-  assert.ok(existsSync(path.join(folder, '19-psalms', 'psalms-001.md')));
-  assert.ok(existsSync(path.join(folder, '19-psalms', 'psalms-150.md')));
-  assert.match(readFileSync(path.join(folder, '20-proverbs', 'proverbs-31.md'), 'utf8'), /###### 4\n\nIt is not for kings/);
-  assert.match(readFileSync(path.join(folder, '20-proverbs', 'proverbs.md'), 'utf8'), /- \[Proverbs 31\]\(<proverbs-31\.md>\)/);
+  assert.ok(existsSync(path.join(folder, psalms, 'psalms-001.md')));
+  assert.ok(existsSync(path.join(folder, psalms, 'psalms-150.md')));
+  assert.match(readFileSync(path.join(folder, proverbs, 'proverbs-31.md'), 'utf8'), /###### 4\n\nIt is not for kings/);
+  assert.match(readFileSync(path.join(folder, proverbs, 'proverbs.md'), 'utf8'), /- \[Proverbs 31\]\(<proverbs-31\.md>\)/);
 
   const index = await sandbox.run(['index']);
   assert.equal(index.status, 0, index.stderr);
@@ -153,7 +164,7 @@ test('the import writes every book and chapter as blueprints, and check is clean
   assert.equal(made.status, 0, made.stderr);
   const study = path.join(sandbox.root, 'notes', 'study.md');
   const text = readFileSync(study, 'utf8');
-  writeFileSync(study, `${text}\nSee [Proverbs 31 › 4–6](<../bible/20-proverbs/proverbs-31.md#4>) and [a verse that is not there](<../bible/20-proverbs/proverbs-31.md#40>).\n`);
+  writeFileSync(study, `${text}\nSee [Proverbs 31 › 4–6](<../bible/${proverbs}/proverbs-31.md#4>) and [a verse that is not there](<../bible/${proverbs}/proverbs-31.md#40>).\n`);
   const check = await sandbox.run(['check', '--json']);
   const findings: Array<{ code: string; message: string }> = JSON.parse(check.stdout).findings;
   const headings = findings.filter((finding) => finding.code === 'link-heading');

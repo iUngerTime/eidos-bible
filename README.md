@@ -2,7 +2,7 @@
 
 Put a whole public-domain Bible into your Eidos project, a blueprint per chapter, then link to any verse from your study notes. Install it, import once, and remove it if you like: the blueprints are your project's own and stay.
 
-- **A blueprint per chapter, a folder per book.** `bible/20-proverbs/proverbs-31.md`, titled _Proverbs 31_, with a book index beside each book and a translation index at the top. They show in the sidebar and in search like any other blueprint.
+- **A blueprint per chapter, a folder per book.** `bible/proverbs/proverbs-31.md`, titled _Proverbs 31_, with a book index beside each book and a translation index at the top. They show in the sidebar and in search like any other blueprint.
 - **Every verse is a heading.** Each verse sits under a small `###### 4` heading, so a link can land on one verse or span a few, like Proverbs 31:4–6.
 - **You choose where it goes.** Any empty collection in the project.
 - **Public domain only.** Five translations whose text anyone may copy, and the import checks the license that comes with the text before writing a page.
@@ -80,12 +80,14 @@ The title lives in the frontmatter, and section headings are H5s. The Linter's h
 
 File and folder names follow your project's naming convention (`proverbs-31.md` in kebab-case, `Proverbs 31.md` in Title Case), and chapter numbers are padded to the book's widest (`psalms-001` to `psalms-150`), so chapters sort in order.
 
+The book folders are named for their books alone (`genesis`, `proverbs`), and the import declares them in the collection in Bible order, which is the order the sidebar lists them in (anyone can still drag them into an order of their own). On Eidos MD before 0.26.0, which cannot declare them, the folders carry their place instead (`01-genesis`, `20-proverbs`) so they still sort in order.
+
 ## Linking to verses
 
 In the Eidos MD editor, type `[[Proverbs 31#4..6]]` and it becomes a standard link:
 
 ```markdown
-[Proverbs 31 › 4–6](<../bible/20-proverbs/proverbs-31.md#4>)
+[Proverbs 31 › 4–6](<../bible/proverbs/proverbs-31.md#4>)
 ```
 
 A link to a range points at its first verse, so it works in any markdown reader, and an embed of the range shows verses 4 to 6 in place. `eidos check` reports a link to a verse that isn't there.

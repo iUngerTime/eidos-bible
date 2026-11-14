@@ -67,28 +67,33 @@ export function collectionCommand(title: string): string {
 // has them: an older host has no `framework`, so the plugin tests for it and
 // the person makes the collection themselves there.
 interface FrameworkCalls {
-  addCollection(spec: { title: string; description?: string }): Promise<{ name: string; title: string }>;
+  addCollection?(spec: { title: string; description?: string }): Promise<{ name: string; title: string }>;
+  addFolders?(spec: { collection: string; folders: ReadonlyArray<{ title: string; description?: string }> }): Promise<Array<{ path: string; title: string }>>;
 }
 
 function frameworkOf(host: Host): FrameworkCalls | null {
   const offered: unknown = (host as { framework?: unknown }).framework;
   if (typeof offered !== 'object' || offered === null) return null;
-  const add: unknown = (offered as { addCollection?: unknown }).addCollection;
-  if (typeof add !== 'function') return null;
   return offered as FrameworkCalls;
 }
 
 export function canCreateCollection(host: Host): boolean {
-  return frameworkOf(host) !== null;
+  return typeof frameworkOf(host)?.addCollection === 'function';
+}
+
+// Whether the host declares a collection's folders for a plugin, in the order
+// asked, so the books need no number to stay in order.
+export function canDeclareFolders(host: Host): boolean {
+  return typeof frameworkOf(host)?.addFolders === 'function';
 }
 
 // The collection made for an import, through the host's own plan, so it is
 // named in the root's convention, held to the framework editor's rule, and
 // refused rather than forced when its name is taken.
 export async function createCollection(host: Host, title: string, description: string): Promise<CollectionChoice> {
-  const framework = frameworkOf(host);
-  if (!framework) throw new HostError(501, 'this version of Eidos MD cannot make a collection for a plugin; make it with New collection on the Home');
-  return framework.addCollection({ title, description });
+  const add = frameworkOf(host)?.addCollection;
+  if (typeof add !== 'function') throw new HostError(501, 'this version of Eidos MD cannot make a collection for a plugin; make it with New collection on the Home');
+  return add({ title, description });
 }
 
 // The collection the page offers first: bible, in the root's convention.
@@ -128,7 +133,7 @@ export function prepareImport(host: Host, request: ImportRequest): Prepared {
   if (folder.ownedBy !== COLLECTIONS_OWNER) throw new HostError(400, `${title} is not a collection; import into a collection made for the Bible, such as ${suggested}`);
   const empty = emptyCollections(host).some((choice) => choice.name === folder.name);
   if (!empty) throw new HostError(409, `${title} already holds files; import into a new, empty collection`);
-  const layout = new Layout(framework.naming, translation);
+  const layout = new Layout(framework.naming, translation, !canDeclareFolders(host));
   const taken = blueprints.find((blueprint) => blueprint.properties?.id === layout.id());
   if (taken) throw new HostError(409, `the ${translation.name} is already in this project, at ${taken.rel}`);
   return { translation, collection: folder.name, title, layout };
@@ -160,6 +165,11 @@ export async function runImport(host: Host, request: ImportRequest, report: (pro
   let files = 0;
   let done = 0;
   report({ done, total: TOTAL_CHAPTERS, book: layout.bookName(0) });
+  const addFolders = frameworkOf(host)?.addFolders;
+  if (!layout.numbered && typeof addFolders === 'function') {
+    const made = await addFolders({ collection, folders: BOOKS.map((_, index) => ({ title: layout.bookName(index) })) });
+    made.forEach((folder, index) => layout.declared.set(index, folder.path));
+  }
   for (const [index, [id, , chapters]] of BOOKS.entries()) {
     const book = byId.get(id);
     if (!book) continue;
