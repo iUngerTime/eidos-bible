@@ -40,6 +40,10 @@ interface Done {
 }
 
 const LANGUAGES = ['en', 'es', 'pt'] as const;
+type Language = (typeof LANGUAGES)[number];
+
+// Each language by its own name, as a language picker shows them, so a reader finds theirs whatever the page is in.
+const LANGUAGE_NAMES: Record<Language, string> = { en: 'English', es: 'Español', pt: 'Português' };
 
 function message(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
@@ -79,7 +83,20 @@ function ProgressBar({ progress }: { progress: Progress }): JSX.Element {
 function ImportPage(): JSX.Element {
   const host = usePluginHost();
   const [options, setOptions] = useState<Options | null>(null);
+  const [language, setLanguage] = useState<Language>(() => {
+    const offered = host.t('defaultLanguage');
+    return LANGUAGES.find((held) => held === offered) ?? 'en';
+  });
   const [translation, setTranslation] = useState(host.t('defaultTranslation'));
+  const inLanguage = (options?.translations ?? []).filter((option) => option.language === language);
+  // a language picked offers its first translation, which is the one the plugin recommends in it
+  const pickLanguage = (value: string): void => {
+    const next = LANGUAGES.find((held) => held === value);
+    if (!next) return;
+    setLanguage(next);
+    const first = (options?.translations ?? []).find((option) => option.language === next);
+    if (first) setTranslation(first.short);
+  };
   const [collection, setCollection] = useState('');
   const [footnotes, setFootnotes] = useState(true);
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -152,18 +169,26 @@ function ImportPage(): JSX.Element {
         {host.t('intro')}
       </Text>
       <SettingRow
+        label={host.t('language')}
+        control={
+          <Select value={language} onChange={(event: { target: HTMLSelectElement }) => pickLanguage(event.target.value)}>
+            {LANGUAGES.map((held) => (
+              <option key={held} value={held}>
+                {LANGUAGE_NAMES[held]}
+              </option>
+            ))}
+          </Select>
+        }
+      />
+      <SettingRow
         label={host.t('translation')}
         control={
           <Select value={translation} onChange={(event: { target: HTMLSelectElement }) => setTranslation(event.target.value)}>
-            {LANGUAGES.flatMap((language) =>
-              (options?.translations ?? [])
-                .filter((option) => option.language === language)
-                .map((option) => (
-                  <option key={option.id} value={option.short} data-detail={host.t(`language_${language}`)} data-search={`${option.name} ${option.short} ${host.t(`language_${language}`)}`}>
-                    {option.name} ({option.short})
-                  </option>
-                )),
-            )}
+            {inLanguage.map((option) => (
+              <option key={option.id} value={option.short}>
+                {option.name} ({option.short})
+              </option>
+            ))}
           </Select>
         }
       />
