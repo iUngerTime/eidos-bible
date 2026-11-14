@@ -3,22 +3,37 @@
 // Pure functions over the source's data, so the layout is tested without a
 // network or a host.
 
-// A translation the plugin offers: the source's id for it and the name a
-// person picks it by. Each is public domain, which the import checks again
-// against the license the source sends with the text.
+// The languages the plugin writes a Bible in, which are the ones the Eidos MD
+// page draws in: a translation's book names and the words around its text
+// (its summaries, its index) are in its own language.
+export type Language = 'en' | 'es' | 'pt';
+
+// A translation the plugin offers: the source's id for it, the short name
+// a command takes and its ids start with, the name a person picks it by, and
+// its language. Each is public domain, which the import checks again against
+// the license the source sends with the text.
 export interface Translation {
   id: string;
   short: string;
   name: string;
+  language: Language;
 }
 
 export const TRANSLATIONS: readonly Translation[] = [
-  { id: 'BSB', short: 'BSB', name: 'Berean Standard Bible' },
-  { id: 'ENGWEBP', short: 'WEB', name: 'World English Bible' },
-  { id: 'eng_kjv', short: 'KJV', name: 'King James Version' },
-  { id: 'eng_asv', short: 'ASV', name: 'American Standard Version (1901)' },
-  { id: 'eng_msb', short: 'MSB', name: 'Majority Standard Bible' },
+  { id: 'BSB', short: 'BSB', name: 'Berean Standard Bible', language: 'en' },
+  { id: 'ENGWEBP', short: 'WEB', name: 'World English Bible', language: 'en' },
+  { id: 'eng_kjv', short: 'KJV', name: 'King James Version', language: 'en' },
+  { id: 'eng_asv', short: 'ASV', name: 'American Standard Version (1901)', language: 'en' },
+  { id: 'eng_msb', short: 'MSB', name: 'Majority Standard Bible', language: 'en' },
+  { id: 'spa_r09', short: 'RV1909', name: 'Reina-Valera 1909', language: 'es' },
+  { id: 'spa_bes', short: 'BES', name: 'La Biblia en Español Sencillo', language: 'es' },
+  { id: 'spa_blm', short: 'BLM', name: 'Biblia Libre para el Mundo', language: 'es' },
+  { id: 'spa_bll', short: 'BLL', name: 'Biblia Libre Latinoamericana', language: 'es' },
+  { id: 'por_bsl', short: 'BPM', name: 'Bíblia Portuguesa Mundial', language: 'pt' },
 ];
+
+// The translation each language offers first.
+export const DEFAULT_TRANSLATION: Record<Language, string> = { en: 'BSB', es: 'RV1909', pt: 'BPM' };
 
 // A translation by its id or its short name, in any case.
 export function findTranslation(wanted: string): Translation | null {
@@ -48,6 +63,68 @@ export const BOOKS: ReadonlyArray<readonly [id: string, name: string, chapters: 
 ];
 
 export const TOTAL_CHAPTERS = BOOKS.reduce((sum, [, , chapters]) => sum + chapters, 0);
+
+// The 66 books' names in Spanish and Portuguese, in the order of BOOKS, fixed
+// for the same reason the English ones are: every translation of a language
+// is written under the same titles, so `[[Proverbios 31#4..6]]` reads the same
+// in each. They are the names the most read editions of each language use.
+const BOOK_NAMES_ES = [
+  'Génesis', 'Éxodo', 'Levítico', 'Números', 'Deuteronomio', 'Josué', 'Jueces', 'Rut', '1 Samuel', '2 Samuel',
+  '1 Reyes', '2 Reyes', '1 Crónicas', '2 Crónicas', 'Esdras', 'Nehemías', 'Ester', 'Job', 'Salmos', 'Proverbios',
+  'Eclesiastés', 'Cantares', 'Isaías', 'Jeremías', 'Lamentaciones', 'Ezequiel', 'Daniel', 'Oseas', 'Joel', 'Amós',
+  'Abdías', 'Jonás', 'Miqueas', 'Nahúm', 'Habacuc', 'Sofonías', 'Hageo', 'Zacarías', 'Malaquías', 'Mateo',
+  'Marcos', 'Lucas', 'Juan', 'Hechos', 'Romanos', '1 Corintios', '2 Corintios', 'Gálatas', 'Efesios', 'Filipenses',
+  'Colosenses', '1 Tesalonicenses', '2 Tesalonicenses', '1 Timoteo', '2 Timoteo', 'Tito', 'Filemón', 'Hebreos', 'Santiago', '1 Pedro',
+  '2 Pedro', '1 Juan', '2 Juan', '3 Juan', 'Judas', 'Apocalipsis',
+];
+const BOOK_NAMES_PT = [
+  'Gênesis', 'Êxodo', 'Levítico', 'Números', 'Deuteronômio', 'Josué', 'Juízes', 'Rute', '1 Samuel', '2 Samuel',
+  '1 Reis', '2 Reis', '1 Crônicas', '2 Crônicas', 'Esdras', 'Neemias', 'Ester', 'Jó', 'Salmos', 'Provérbios',
+  'Eclesiastes', 'Cânticos', 'Isaías', 'Jeremias', 'Lamentações', 'Ezequiel', 'Daniel', 'Oseias', 'Joel', 'Amós',
+  'Obadias', 'Jonas', 'Miqueias', 'Naum', 'Habacuque', 'Sofonias', 'Ageu', 'Zacarias', 'Malaquias', 'Mateus',
+  'Marcos', 'Lucas', 'João', 'Atos', 'Romanos', '1 Coríntios', '2 Coríntios', 'Gálatas', 'Efésios', 'Filipenses',
+  'Colossenses', '1 Tessalonicenses', '2 Tessalonicenses', '1 Timóteo', '2 Timóteo', 'Tito', 'Filemom', 'Hebreus', 'Tiago', '1 Pedro',
+  '2 Pedro', '1 João', '2 João', '3 João', 'Judas', 'Apocalipse',
+];
+
+// A book's name in a language, by its place among the 66.
+export function bookName(language: Language, index: number): string {
+  if (language === 'es') return BOOK_NAMES_ES[index] ?? '';
+  if (language === 'pt') return BOOK_NAMES_PT[index] ?? '';
+  return BOOKS[index]?.[1] ?? '';
+}
+
+// The words a translation's pages are written with, in its language.
+const WORDS: Record<Language, { chapterSummary: string; bookSummary: string; translationSummary: string; credit: string; oldTestament: string; newTestament: string }> = {
+  en: {
+    chapterSummary: '{title} in the {translation}',
+    bookSummary: 'The book of {book} in the {translation}, a page per chapter',
+    translationSummary: 'The {translation}, every book, and where its text came from',
+    credit: 'The {credit}, imported from the Free Use Bible API (bible.helloao.org). The text is in the public domain.',
+    oldTestament: 'Old Testament',
+    newTestament: 'New Testament',
+  },
+  es: {
+    chapterSummary: '{title} ({translation})',
+    bookSummary: 'El libro de {book} ({translation}), una página por capítulo',
+    translationSummary: '{translation}: todos los libros y de dónde viene su texto',
+    credit: 'Texto de {credit}, importado de la Free Use Bible API (bible.helloao.org). El texto es de dominio público.',
+    oldTestament: 'Antiguo Testamento',
+    newTestament: 'Nuevo Testamento',
+  },
+  pt: {
+    chapterSummary: '{title} ({translation})',
+    bookSummary: 'O livro de {book} ({translation}), uma página por capítulo',
+    translationSummary: '{translation}: todos os livros e de onde vem o seu texto',
+    credit: 'Texto de {credit}, importado da Free Use Bible API (bible.helloao.org). O texto está em domínio público.',
+    oldTestament: 'Antigo Testamento',
+    newTestament: 'Novo Testamento',
+  },
+};
+
+function fill(template: string, values: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (whole, key: string) => values[key] ?? whole);
+}
 
 // ---- the source's data (bible.helloao.org's complete.json) -----------------
 
@@ -126,6 +203,10 @@ export class Layout {
   constructor(naming: string, translation: Translation) {
     this.naming = naming;
     this.translation = translation;
+  }
+
+  bookName(index: number): string {
+    return bookName(this.translation.language, index);
   }
 
   // A book's folder: its place among the 66 and its name, `20-proverbs`.
@@ -269,13 +350,15 @@ export function chapterMarkdown(layout: Layout, place: ChapterPlace, source: Sou
   }
   blocks.push('---', nav);
   if (used.length > 0) blocks.push(used.map((note) => `[^${note.number}]: ${note.text.trim()}`).join('\n'));
-  const head = frontmatter(layout.id(place.bookId, place.chapter), title, `${title} in the ${layout.translation.name}`);
+  const words = WORDS[layout.translation.language];
+  const head = frontmatter(layout.id(place.bookId, place.chapter), title, fill(words.chapterSummary, { title, translation: layout.translation.name }));
   return `${head}\n\n${blocks.join('\n\n')}\n`;
 }
 
 // A book's index: a link to each chapter.
 export function bookMarkdown(layout: Layout, bookId: string, book: string, chapters: number): string {
-  const lines = [frontmatter(layout.id(bookId), book, `The book of ${book} in the ${layout.translation.name}, a page per chapter`), '', `# ${book}`, ''];
+  const summary = fill(WORDS[layout.translation.language].bookSummary, { book, translation: layout.translation.name });
+  const lines = [frontmatter(layout.id(bookId), book, summary), '', `# ${book}`, ''];
   for (let chapter = 1; chapter <= chapters; chapter++) lines.push(`- ${link(`${book} ${chapter}`, layout.chapterFile(book, chapter, chapters))}`);
   return `${lines.join('\n')}\n`;
 }
@@ -284,12 +367,14 @@ export function bookMarkdown(layout: Layout, bookId: string, book: string, chapt
 // where the text came from and under what terms, so the import carries its notice.
 export function translationMarkdown(layout: Layout, source: SourceTranslation['translation']): string {
   const title = layout.translation.name;
-  const lines = [frontmatter(layout.id(), title, `The ${title}, every book, and where its text came from`), '', `# ${title}`, ''];
+  const words = WORDS[layout.translation.language];
+  const lines = [frontmatter(layout.id(), title, fill(words.translationSummary, { translation: title })), '', `# ${title}`, ''];
   const credit = source.website ? link(source.name, source.website) : source.name;
-  lines.push(`The ${credit}, imported from the Free Use Bible API (bible.helloao.org). The text is in the public domain.`, '');
-  lines.push('## Old Testament', '');
-  BOOKS.forEach(([, name], index) => {
-    if (index === 39) lines.push('', '## New Testament', '');
+  lines.push(fill(words.credit, { credit }), '');
+  lines.push(`## ${words.oldTestament}`, '');
+  BOOKS.forEach((_, index) => {
+    if (index === 39) lines.push('', `## ${words.newTestament}`, '');
+    const name = layout.bookName(index);
     lines.push(`- ${link(name, `${layout.bookFolder(index, name)}/${layout.bookFile(name)}`)}`);
   });
   return `${lines.join('\n')}\n`;

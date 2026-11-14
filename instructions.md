@@ -18,7 +18,7 @@ A verse is a heading, so link to it as to any heading: `[Proverbs 31 › 4](<../
 
 ## Commands
 
-- `eidos bible translations` lists the translations offered.
-- `eidos bible import <collection> [--translation BSB] [--no-footnotes]` writes one into `<collection>`, which must be a declared collection holding nothing yet (`eidos configure:collection add bible` makes one). A translation is imported once per project. Run `eidos index` after it.
+- `eidos bible translations` lists the translations offered, by language: English, Spanish (book names such as `Proverbios`), and Portuguese (`Provérbios`). A translation's titles, summaries, and index are in its own language; its ids and folder names are plain (`rv1909-pro-31`, `20-proverbios`).
+- `eidos bible import <collection> [--translation BSB] [--no-footnotes]` writes one into `<collection>`, which must be a declared collection holding nothing yet (`eidos configure:collection add "Bible"` makes one; the collection is named by its title or its folder). A translation is imported once per project. Run `eidos index` after it.
 
 Do not edit an imported chapter to add study notes; write them in the project's own blueprints and link to the verse.

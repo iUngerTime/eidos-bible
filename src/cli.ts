@@ -4,11 +4,14 @@
 import { type CliEntry, type Host } from 'eidosmd/plugin';
 import { TRANSLATIONS, type Translation } from './bible.ts';
 import {
+  canCreateCollection,
   collectionCommand,
+  createCollection,
   emptyCollections,
   prepareImport,
   runImport,
   suggestedCollection,
+  type CollectionChoice,
   type ImportRequest,
   type ImportResult,
   type Prepared,
@@ -17,9 +20,11 @@ import {
 
 export interface Api {
   translations(): readonly Translation[];
-  emptyCollections(): string[];
+  emptyCollections(): CollectionChoice[];
   suggestedCollection(): string;
   collectionCommand(name: string): string;
+  canCreateCollection(): boolean;
+  createCollection(title: string, description: string): Promise<CollectionChoice>;
   prepare(request: ImportRequest): Prepared;
   import(request: ImportRequest, report: (progress: Progress) => void): Promise<ImportResult>;
 }
@@ -31,6 +36,8 @@ const entry: CliEntry = {
       emptyCollections: () => emptyCollections(host),
       suggestedCollection: () => suggestedCollection(host),
       collectionCommand,
+      canCreateCollection: () => canCreateCollection(host),
+      createCollection: (title, description) => createCollection(host, title, description),
       prepare: (request) => prepareImport(host, request),
       import: (request, report) => runImport(host, request, report),
     };
@@ -39,7 +46,15 @@ const entry: CliEntry = {
         .command('translations')
         .description('list the public-domain translations the import offers')
         .action(() => {
-          for (const translation of TRANSLATIONS) process.stdout.write(`${translation.short.padEnd(5)} ${translation.name}\n`);
+          const languages: Array<[string, string]> = [
+            ['en', 'English'],
+            ['es', 'Spanish'],
+            ['pt', 'Portuguese'],
+          ];
+          for (const [code, language] of languages) {
+            process.stdout.write(`${language}\n`);
+            for (const translation of TRANSLATIONS.filter((held) => held.language === code)) process.stdout.write(`  ${translation.short.padEnd(7)} ${translation.name}\n`);
+          }
         });
       command
         .command('import')
@@ -52,7 +67,7 @@ const entry: CliEntry = {
             process.stderr.write(`\r${progress.done}/${progress.total} chapters, ${progress.book}`.padEnd(48));
           });
           process.stderr.write('\n');
-          process.stdout.write(`✓ ${result.translation.name} written to ${result.collection}/ (${result.files} blueprints)\n`);
+          process.stdout.write(`✓ ${result.translation.name} written to ${result.title} (${result.collection}/, ${result.files} blueprints)\n`);
         });
     });
     return { api };

@@ -1,5 +1,5 @@
 name: bible
 title: Bible Import
 description: Write a public-domain Bible translation into a collection, a folder per book and a blueprint per chapter, each verse a heading you can link to
-version: 0.1.0
+version: 0.2.0
 min_host: 0.24.0

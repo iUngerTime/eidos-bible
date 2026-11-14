@@ -8,7 +8,7 @@ import type { AddressInfo } from 'node:net';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { pluginSandbox, type PluginSandbox } from 'eidosmd/plugin-testing';
-import { BOOKS, Layout, TRANSLATIONS, chapterMarkdown, nameIn, padChapter, type SourceChapter, type SourceTranslation } from '../src/bible.ts';
+import { BOOKS, Layout, TRANSLATIONS, bookMarkdown, chapterMarkdown, nameIn, padChapter, translationMarkdown, type SourceChapter, type SourceTranslation } from '../src/bible.ts';
 
 const PROVERBS_31: SourceChapter = {
   chapter: {
@@ -75,6 +75,20 @@ test("files and folders follow the project's naming; titles keep the plain names
   assert.equal(nameIn('kebab-case', 'Bible'), 'bible');
 });
 
+test('a Spanish or Portuguese translation is written with its own book names and words, its ids and folders plain', () => {
+  const rv = new Layout('kebab-case', TRANSLATIONS.find((translation) => translation.short === 'RV1909')!);
+  const page = chapterMarkdown(rv, { bookId: 'PRO', book: rv.bookName(19), chapter: 31, chapters: 31 }, PROVERBS_31, true);
+  assert.match(page, /^---\nid: "rv1909-pro-31"\ntitle: "Proverbios 31"\nsummary: "Proverbios 31 \(Reina-Valera 1909\)"\n---\n\n\[← Proverbios 30\]\(<proverbios-30\.md>\) · \[Proverbios\]\(<proverbios\.md>\)/);
+  assert.equal(rv.bookFolder(0, rv.bookName(0)), '01-genesis', 'accents come off a folder name, as the convention does');
+  assert.equal(rv.chapterFile(rv.bookName(21), 2, 8), 'cantares-2.md');
+  assert.match(bookMarkdown(rv, 'PRO', 'Proverbios', 31), /summary: "El libro de Proverbios \(Reina-Valera 1909\), una página por capítulo"/);
+  const index = translationMarkdown(rv, { id: 'spa_r09', name: 'Santa Biblia — Reina Valera 1909' });
+  assert.match(index, /## Antiguo Testamento[\s\S]*- \[Génesis\]\(<01-genesis\/genesis\.md>\)[\s\S]*## Nuevo Testamento[\s\S]*- \[Apocalipsis\]/);
+  const bpm = new Layout('Title Case', TRANSLATIONS.find((translation) => translation.short === 'BPM')!);
+  assert.equal(bpm.chapterFile(bpm.bookName(42), 3, 21), 'João 03.md');
+  assert.match(translationMarkdown(bpm, { id: 'por_bsl', name: 'Bíblia Portuguesa Mundial' }), /## Antigo Testamento[\s\S]*## Novo Testamento/);
+});
+
 test("a chapter's number is as wide as its book's last", () => {
   assert.equal(padChapter(1, 150), '001');
   assert.equal(padChapter(31, 31), '31');
@@ -116,10 +130,10 @@ async function addCollection(name: string): Promise<void> {
 }
 
 test('the import writes every book and chapter as blueprints, and check is clean and finds a verse a page links to', async () => {
-  await addCollection('bible');
+  await addCollection('Bible');
   const run = await sandbox.run(['bible', 'import', 'bible'], { env: env() });
   assert.equal(run.status, 0, run.stderr);
-  assert.match(run.stdout, /Berean Standard Bible written to bible\/ \(1256 blueprints\)/);
+  assert.match(run.stdout, /Berean Standard Bible written to Bible \(bible\/, 1256 blueprints\)/);
   const folder = path.join(sandbox.root, 'bible');
   assert.equal(readdirSync(folder).filter((entry) => /^\d\d-/.test(entry)).length, 66);
   assert.ok(existsSync(path.join(folder, 'berean-standard-bible.md')));
@@ -148,37 +162,56 @@ test('the import writes every book and chapter as blueprints, and check is clean
 });
 
 test('a translation already in the project, and a collection that already holds files, are refused', async () => {
-  await addCollection('second');
-  const again = await sandbox.run(['bible', 'import', 'second'], { env: env() });
+  await addCollection('Second Bible');
+  const again = await sandbox.run(['bible', 'import', 'Second Bible'], { env: env() });
   assert.notEqual(again.status, 0);
   assert.match(again.stderr, /Berean Standard Bible is already in this project, at bible\/berean-standard-bible\.md/);
   const full = await sandbox.run(['bible', 'import', 'notes', '--translation', 'WEB'], { env: env() });
-  assert.match(full.stderr, /notes already holds files/);
+  assert.match(full.stderr, /[Nn]otes already holds files/);
 });
 
 test('a collection that is not there, a folder that is not a collection, and a translation not offered are refused before anything is fetched', async () => {
   const missing = await sandbox.run(['bible', 'import', 'Scripture'], { env: env() });
-  assert.match(missing.stderr, /no collection Scripture; make one first .*eidos configure:collection add scripture/);
-  assert.match((await sandbox.run(['bible', 'import', 'second', '--translation', 'NIV'], { env: env() })).stderr, /not one of the translations offered/);
+  assert.match(missing.stderr, /no collection Scripture; make one first .*eidos configure:collection add "Scripture"/);
+  assert.match((await sandbox.run(['bible', 'import', 'Second Bible', '--translation', 'NIV'], { env: env() })).stderr, /not one of the translations offered/);
   const folder = await sandbox.run(['configure:folder', 'add', 'loose', '--description', 'Notes of my own', '--yes']);
   assert.equal(folder.status, 0, folder.stderr);
   assert.match((await sandbox.run(['bible', 'import', 'loose'], { env: env() })).stderr, /loose is not a collection/);
 });
 
 test('a translation the source no longer marks public domain is not imported', async () => {
-  const run = await sandbox.run(['bible', 'import', 'second', '--translation', 'KJV'], { env: env() });
+  const run = await sandbox.run(['bible', 'import', 'Second Bible', '--translation', 'KJV'], { env: env() });
   assert.notEqual(run.status, 0);
   assert.match(run.stderr, /no longer marks King James Version as public domain/);
-  assert.deepEqual(readdirSync(path.join(sandbox.root, 'second')).filter((entry) => !entry.startsWith('.')), []);
+  assert.deepEqual(readdirSync(path.join(sandbox.root, 'second-bible')).filter((entry) => !entry.startsWith('.')), []);
 });
 
 test('the page is offered the translations and the empty collections, and a bad request is refused at once', async () => {
-  const answer = await sandbox.route<{ translations: Array<{ short: string }>; collections: string[]; suggested: string }>('GET', 'options');
+  const answer = await sandbox.route<{ translations: Array<{ short: string }>; collections: Array<{ name: string; title: string }>; suggested: string }>('GET', 'options');
   assert.deepEqual(
     answer.translations.map((translation) => translation.short),
-    ['BSB', 'WEB', 'KJV', 'ASV', 'MSB'],
+    ['BSB', 'WEB', 'KJV', 'ASV', 'MSB', 'RV1909', 'BES', 'BLM', 'BLL', 'BPM'],
   );
-  assert.deepEqual(answer.collections, ['second']);
+  assert.deepEqual(answer.collections, [{ name: 'second-bible', title: 'Second Bible' }]);
   assert.equal(answer.suggested, 'bible');
   await assert.rejects(sandbox.route('POST', 'import', { body: { translation: 'BSB', collection: '' } }), /a collection to import into/);
+});
+
+test('the collection an import needs is made through the host where it can, and an older host says how to make it', async () => {
+  const offered = await sandbox.route<{ can_create: boolean }>('GET', 'options');
+  if (!offered.can_create) {
+    await assert.rejects(sandbox.route('POST', 'collection', { body: { title: 'Biblia' } }), /cannot make a collection for a plugin/);
+    return;
+  }
+  const made = await sandbox.route<{ name: string; title: string }>('POST', 'collection', { body: { title: 'Biblia', description: 'Reina-Valera 1909' } });
+  assert.deepEqual(made, { name: 'biblia', title: 'Biblia' });
+  const after = await sandbox.route<{ collections: Array<{ name: string; title: string }> }>('GET', 'options');
+  assert.ok(after.collections.some((choice) => choice.name === 'biblia' && choice.title === 'Biblia'), 'the page is offered it at once');
+  await assert.rejects(sandbox.route('POST', 'collection', { body: { title: 'Biblia' } }));
+});
+
+test('eidos bible translations lists the translations by language', async () => {
+  const run = await sandbox.run(['bible', 'translations']);
+  assert.equal(run.status, 0, run.stderr);
+  assert.match(run.stdout, /^English\n  BSB {5}Berean Standard Bible\n[\s\S]*\nSpanish\n  RV1909  Reina-Valera 1909\n[\s\S]*\nPortuguese\n  BPM {5}Bíblia Portuguesa Mundial\n$/);
 });

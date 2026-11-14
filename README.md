@@ -11,13 +11,20 @@ Put a whole public-domain Bible into your Eidos project, a blueprint per chapter
 
 ## Translations
 
-| Short name | Translation                      |
-| :--------- | :------------------------------- |
-| BSB        | Berean Standard Bible (default)  |
-| WEB        | World English Bible              |
-| KJV        | King James Version               |
-| ASV        | American Standard Version (1901) |
-| MSB        | Majority Standard Bible          |
+| Language   | Short name | Translation                      |
+| :--------- | :--------- | :------------------------------- |
+| English    | BSB        | Berean Standard Bible (default)  |
+| English    | WEB        | World English Bible              |
+| English    | KJV        | King James Version               |
+| English    | ASV        | American Standard Version (1901) |
+| English    | MSB        | Majority Standard Bible          |
+| Spanish    | RV1909     | Reina-Valera 1909                |
+| Spanish    | BES        | La Biblia en Español Sencillo    |
+| Spanish    | BLM        | Biblia Libre para el Mundo       |
+| Spanish    | BLL        | Biblia Libre Latinoamericana     |
+| Portuguese | BPM        | Bíblia Portuguesa Mundial        |
+
+A Spanish or Portuguese translation is written in its own language: its book names (_Proverbios 31_, _Provérbios 31_), its summaries, and its index. The import page is in English, Spanish, or Portuguese, following the app, and offers that language's translation first.
 
 The text comes from the [Free Use Bible API](https://bible.helloao.org/docs/) (bible.helloao.org), which is MIT licensed and adds no terms of its own. Each translation above is in the public domain: the Berean Standard Bible was [dedicated to the public domain](https://berean.bible/licensing.htm) in April 2023, and the others are long out of copyright. One caveat: in the United Kingdom the King James Version is still under the Crown's letters patent, so check before publishing a KJV import there.
 
@@ -25,15 +32,15 @@ The text comes from the [Free Use Bible API](https://bible.helloao.org/docs/) (b
 
 You need Eidos MD 0.24.0 or later. Install the plugin from **Settings → Community plugins**, enable it, and allow it to run.
 
-1. **Make a collection for it.** Choose **New collection** on the Home and name it _Bible_ (any name works). A plugin cannot add a collection to your framework, so this step is yours.
+1. **Make a collection for it.** On Eidos MD 0.26.0 or later, choose **Make the Bible collection** on the import page. On an older version, choose **New collection** on the Home and name it _Bible_ (any name works).
 2. **Import.** Open the plugin's settings page (the cog beside **Bible Import** on the Community plugins page). Pick a translation and the collection, and choose **Import**. The page shows each book as it is written, and a toast says when it is done.
 3. **Rebuild the index** when `eidos check` asks (the **Rebuild the index** fix in the app, or `eidos index`).
 
 From a terminal:
 
 ```bash
-eidos configure:collection add bible --description "The Berean Standard Bible"
-eidos bible import bible --translation BSB
+eidos configure:collection add "Bible" --description "The Berean Standard Bible"
+eidos bible import Bible --translation BSB
 eidos index
 ```
 

@@ -38,18 +38,57 @@ export interface Progress {
 export interface Prepared {
   translation: Translation;
   collection: string;
+  title: string;
   layout: Layout;
 }
 
 export interface ImportResult {
   translation: Translation;
   collection: string;
+  // what the person calls the collection: its title, else its folder's name
+  title: string;
   files: number;
 }
 
-// What a person runs to make a collection to import into.
-export function collectionCommand(name: string): string {
-  return `eidos configure:collection add ${name} --description "A Bible translation, a blueprint per chapter"`;
+// A collection as the page offers it: its folder's name, which a request
+// names, and the title the person gave it, which the page shows.
+export interface CollectionChoice {
+  name: string;
+  title: string;
+}
+
+// What a person runs to make a collection to import into, named as they say
+// it (Bible); the CLI names its folder in the project's convention.
+export function collectionCommand(title: string): string {
+  return `eidos configure:collection add ${JSON.stringify(title)} --description "A Bible translation, a blueprint per chapter"`;
+}
+
+// The host's framework calls (Surfaces REQ65, Eidos MD 0.26.0), when this host
+// has them: an older host has no `framework`, so the plugin tests for it and
+// the person makes the collection themselves there.
+interface FrameworkCalls {
+  addCollection(spec: { title: string; description?: string }): Promise<{ name: string; title: string }>;
+}
+
+function frameworkOf(host: Host): FrameworkCalls | null {
+  const offered: unknown = (host as { framework?: unknown }).framework;
+  if (typeof offered !== 'object' || offered === null) return null;
+  const add: unknown = (offered as { addCollection?: unknown }).addCollection;
+  if (typeof add !== 'function') return null;
+  return offered as FrameworkCalls;
+}
+
+export function canCreateCollection(host: Host): boolean {
+  return frameworkOf(host) !== null;
+}
+
+// The collection made for an import, through the host's own plan, so it is
+// named in the root's convention, held to the framework editor's rule, and
+// refused rather than forced when its name is taken.
+export async function createCollection(host: Host, title: string, description: string): Promise<CollectionChoice> {
+  const framework = frameworkOf(host);
+  if (!framework) throw new HostError(501, 'this version of Eidos MD cannot make a collection for a plugin; make it with New collection on the Home');
+  return framework.addCollection({ title, description });
 }
 
 // The collection the page offers first: bible, in the root's convention.
@@ -58,7 +97,7 @@ export function suggestedCollection(host: Host): string {
 }
 
 // The collections that can take an import: those with no blueprint and no file yet.
-export function emptyCollections(host: Host): string[] {
+export function emptyCollections(host: Host): CollectionChoice[] {
   const { root, framework, blueprints } = host.context();
   return framework.collections
     .filter((collection) => !blueprints.some((blueprint) => blueprint.collection === collection))
@@ -66,7 +105,7 @@ export function emptyCollections(host: Host): string[] {
       const folder = path.join(root, collection.name);
       return !existsSync(folder) || readdirSync(folder).every((entry) => entry.startsWith('.'));
     })
-    .map((collection) => collection.name);
+    .map((collection) => ({ name: collection.name, title: collection.title ?? collection.name }));
 }
 
 // What can be refused before anything is fetched. The collection must be one
@@ -80,16 +119,19 @@ export function prepareImport(host: Host, request: ImportRequest): Prepared {
   const wanted = request.collection.trim();
   const suggested = nameIn(framework.naming, 'Bible');
   if (wanted === '') throw new HostError(400, `a collection to import into, such as ${suggested}`);
-  const folder = framework.folders.find((candidate) => candidate.name.toLowerCase() === wanted.toLowerCase());
+  const lower = wanted.toLowerCase();
+  const folder = framework.folders.find((candidate) => candidate.name.toLowerCase() === lower || candidate.title?.toLowerCase() === lower);
   if (!folder) {
-    throw new HostError(404, `the project has no collection ${wanted}; make one first (New collection in the app, or ${collectionCommand(nameIn(framework.naming, wanted) || suggested)})`);
+    throw new HostError(404, `the project has no collection ${wanted}; make one first (New collection in the app, or ${collectionCommand(wanted)})`);
   }
-  if (folder.ownedBy !== COLLECTIONS_OWNER) throw new HostError(400, `${folder.name} is not a collection; import into a collection made for the Bible, such as ${suggested}`);
-  if (!emptyCollections(host).includes(folder.name)) throw new HostError(409, `${folder.name} already holds files; import into a new, empty collection`);
+  const title = folder.title ?? folder.name;
+  if (folder.ownedBy !== COLLECTIONS_OWNER) throw new HostError(400, `${title} is not a collection; import into a collection made for the Bible, such as ${suggested}`);
+  const empty = emptyCollections(host).some((choice) => choice.name === folder.name);
+  if (!empty) throw new HostError(409, `${title} already holds files; import into a new, empty collection`);
   const layout = new Layout(framework.naming, translation);
   const taken = blueprints.find((blueprint) => blueprint.properties?.id === layout.id());
   if (taken) throw new HostError(409, `the ${translation.name} is already in this project, at ${taken.rel}`);
-  return { translation, collection: folder.name, layout };
+  return { translation, collection: folder.name, title, layout };
 }
 
 export async function fetchTranslation(translation: Translation): Promise<SourceTranslation> {
@@ -105,7 +147,7 @@ export async function fetchTranslation(translation: Translation): Promise<Source
 }
 
 export async function runImport(host: Host, request: ImportRequest, report: (progress: Progress) => void): Promise<ImportResult> {
-  const { translation, collection, layout } = prepareImport(host, request);
+  const { translation, collection, title, layout } = prepareImport(host, request);
   const source = await fetchTranslation(translation);
   if (source.translation.license?.publicDomain !== true) {
     throw new HostError(422, `the source no longer marks ${translation.name} as public domain, so it is not imported`);
@@ -117,10 +159,11 @@ export async function runImport(host: Host, request: ImportRequest, report: (pro
   const footnotes = request.footnotes ?? true;
   let files = 0;
   let done = 0;
-  report({ done, total: TOTAL_CHAPTERS, book: BOOKS[0]?.[1] ?? '' });
-  for (const [index, [id, name, chapters]] of BOOKS.entries()) {
+  report({ done, total: TOTAL_CHAPTERS, book: layout.bookName(0) });
+  for (const [index, [id, , chapters]] of BOOKS.entries()) {
     const book = byId.get(id);
     if (!book) continue;
+    const name = layout.bookName(index);
     const dir = `${collection}/${layout.bookFolder(index, name)}`;
     for (const chapter of book.chapters) {
       const number = chapter.chapter.number;
@@ -135,5 +178,5 @@ export async function runImport(host: Host, request: ImportRequest, report: (pro
   }
   await host.writeFile(`${collection}/${layout.translationFile()}`, translationMarkdown(layout, source.translation));
   files++;
-  return { translation, collection, files };
+  return { translation, collection, title, files };
 }

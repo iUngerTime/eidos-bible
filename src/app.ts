@@ -14,8 +14,14 @@ const entry: AppEntry<Api> = {
         translations: api.translations(),
         collections: api.emptyCollections(),
         suggested,
-        command: api.collectionCommand(suggested),
+        command: api.collectionCommand('Bible'),
+        can_create: api.canCreateCollection(),
       };
+    });
+    host.route('POST', 'collection', async (request) => {
+      const title = typeof request.body.title === 'string' ? request.body.title : '';
+      const description = typeof request.body.description === 'string' ? request.body.description : '';
+      return api.createCollection(title, description);
     });
     host.route('POST', 'import', (request) => {
       if (running) throw new HostError(409, 'an import is already running');
@@ -28,7 +34,7 @@ const entry: AppEntry<Api> = {
       void (async () => {
         try {
           const result = await api.import({ translation, collection, footnotes }, (progress) => host.emit('progress', progress));
-          host.emit('done', { name: result.translation.name, collection: result.collection, files: result.files });
+          host.emit('done', { name: result.translation.name, collection: result.collection, title: result.title, files: result.files });
         } catch (cause) {
           host.emit('failed', { message: cause instanceof Error ? cause.message : String(cause) });
         } finally {
