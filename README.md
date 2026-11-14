@@ -99,6 +99,14 @@ A link to a range points at its first verse, so it works in any markdown reader,
 
 ## Develop
 
+In VS Code, press F5 and pick one of the launch entries in `.vscode/launch.json`:
+
+- **Bible Import: try it in the app** builds the plugin with source maps and opens Eidos MD on a sandbox project of its own, so breakpoints in `src/*.ts` stop and none of your projects is touched. The plugin's page is at `/plugins/bible`.
+- **Bible Import: try it, after building eidosmd** does the same after rebuilding the Eidos MD checkout beside this one, for when you changed the host too.
+- **Bible Import: run the tests** runs the suite under the debugger.
+
+From a terminal:
+
 ```bash
 pnpm install
 pnpm test

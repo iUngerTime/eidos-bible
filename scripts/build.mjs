@@ -12,6 +12,9 @@ import { createRequire } from 'node:module';
 import { context } from 'esbuild';
 
 const watching = process.argv.includes('--watch');
+// --sourcemap writes a .map beside each bundle, so a debugger stops on src/*.ts (the VS Code launch builds this way);
+// a release is built without, and attaches only the four files
+const sourcemap = process.argv.includes('--sourcemap');
 mkdirSync('dist', { recursive: true });
 // the version of the eidosmd installed beside the plugin, null when none is
 let builtWith = null;
@@ -25,7 +28,7 @@ const copy = () => {
   writeFileSync('dist/manifest.yaml', builtWith ? manifest.replace(/^(min_host:.*\n)/m, `$1built_with: ${builtWith}\n`) : manifest);
   copyFileSync('instructions.md', 'dist/instructions.md');
 };
-const node = { bundle: true, platform: 'node', format: 'cjs', target: 'node22', external: ['eidosmd/plugin'], legalComments: 'none' };
+const node = { bundle: true, platform: 'node', format: 'cjs', target: 'node22', external: ['eidosmd/plugin'], legalComments: 'none', sourcemap };
 const builds = [
   { ...node, entryPoints: ['src/cli.ts'], outfile: 'dist/cli.js' },
   { ...node, entryPoints: ['src/app.ts'], outfile: 'dist/app.js' },
@@ -39,6 +42,7 @@ const builds = [
     jsx: 'automatic',
     external: ['react', 'react/jsx-runtime', 'eidosmd/page'],
     legalComments: 'none',
+    sourcemap,
   },
 ];
 copy();
